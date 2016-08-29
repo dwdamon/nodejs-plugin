@@ -21,7 +21,7 @@ public interface InstallerPathResolver {
 
         public static boolean isVersionBlacklisted(String version){
             NodeJSVersion nodeJSVersion = new NodeJSVersion(version);
-            return nodeJSVersion.isLowerThan("0.8.6") || "0.9.0".equals(version);
+            return nodeJSVersion.isLowerThan("4.0.0");
         }
     }
 }

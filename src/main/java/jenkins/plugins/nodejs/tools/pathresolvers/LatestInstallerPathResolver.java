@@ -21,7 +21,14 @@ public class LatestInstallerPathResolver implements InstallerPathResolver {
                 return "node-v"+version+"-linux-x64"+EXTENSION;
             } else if(cpu == NodeJSInstaller.CPU.i386){
                 return "node-v"+version+"-linux-x86"+EXTENSION;
+            } else if(cpu == NodeJSInstaller.CPU.armv6l){
+                return "node-v"+version+"-linux-armv6l"+EXTENSION;
+            } else if(cpu == NodeJSInstaller.CPU.armv7l){
+                return "node-v"+version+"-linux-armv7l"+EXTENSION;
+            } else if(cpu == NodeJSInstaller.CPU.armv8l){
+                return "node-v"+version+"-linux-arm64"+EXTENSION;
             }
+            
         // At the moment, windows MSI installer are not handled !
         //} else if (platform == NodeJSInstaller.Platform.WINDOWS){
         }

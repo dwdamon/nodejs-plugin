@@ -50,6 +50,9 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.BufferedReader;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -284,7 +287,7 @@ public class NodeJSInstaller extends DownloadFromUrlInstaller {
             if(arch.contains("linux"))  return LINUX;
             if(arch.contains("windows"))   return WINDOWS;
             if(arch.contains("mac"))   return MAC;
-            throw new DetectionFailedException("Unknown CPU name: "+arch);
+            throw new DetectionFailedException("Unknown OS name: "+arch);
         }
 
         static class GetCurrentPlatform extends MasterToSlaveCallable<Platform,DetectionFailedException> {
@@ -300,7 +303,7 @@ public class NodeJSInstaller extends DownloadFromUrlInstaller {
      * CPU type.
      */
     public enum CPU {
-        i386, amd64;
+        i386, amd64, armv6l, armv7l, armv8l;
 
         /**
          * In JDK5u3, I see platform like "Linux AMD64", while JDK6u3 refers to "Linux x64", so
@@ -308,16 +311,23 @@ public class NodeJSInstaller extends DownloadFromUrlInstaller {
          */
         public Preference accept(String line) {
             switch (this) {
-            // 64bit Solaris, Linux, and Windows can all run 32bit executable, so fall back to 32bit if 64bit bundle is not found
-            case amd64:
+              // 64bit Solaris, Linux, and Windows can all run 32bit executable, so fall back to 32bit if 64bit bundle is not found
+              case amd64:
                 if(line.contains("SPARC") || line.contains("IA64"))  return UNACCEPTABLE;
                 if(line.contains("64"))     return PRIMARY;
                 return SECONDARY;
-            case i386:
+              case i386:
                 if(line.contains("64") || line.contains("SPARC") || line.contains("IA64"))     return UNACCEPTABLE;
                 return PRIMARY;
+
+              case armv6l:
+              case armv7l:
+              case armv8l:
+                return PRIMARY;
+
+              default:
+                return UNACCEPTABLE;
             }
-            return UNACCEPTABLE;
         }
 
         /**
@@ -325,6 +335,43 @@ public class NodeJSInstaller extends DownloadFromUrlInstaller {
          */
         public static CPU of(Node n) throws IOException,InterruptedException, DetectionFailedException {
             return n.getChannel().call(new GetCurrentCPU());
+        }
+
+
+        private static String getArmArchitecture() {
+          StringBuffer   retval         = new StringBuffer();
+          BufferedReader bufferedReader = null;
+
+          try {
+            // if uname id not in /bin then this will fail.
+            // It's possible we will need to search known locations for it.
+            Process           process        = new ProcessBuilder( "/bin/uname", "-a" ).start();
+            InputStream       inStream       = process.getInputStream();
+            InputStreamReader inStreamReader = new InputStreamReader( inStream );
+
+            bufferedReader      = new BufferedReader( inStreamReader );
+
+            String line;
+            while(( line = bufferedReader.readLine() ) != null ) {
+              retval.append( line );
+            }
+          }
+          catch( Exception e ) {
+          }
+          finally {
+            try {
+              bufferedReader.close();
+            }
+            catch( Exception e ) {}
+          }
+
+          String data = retval.toString();
+          int armIndex = data.toLowerCase().indexOf( "arm" );
+          int endIndex = data.toLowerCase().indexOf( " ", armIndex );
+          if( armIndex >= 0 ) {
+            data = data.substring( armIndex, endIndex );
+          }
+          return data.toLowerCase();
         }
 
         /**
@@ -336,6 +383,20 @@ public class NodeJSInstaller extends DownloadFromUrlInstaller {
             String arch = System.getProperty("os.arch").toLowerCase(Locale.ENGLISH);
             if(arch.contains("amd64") || arch.contains("86_64"))    return amd64;
             if(arch.contains("86"))    return i386;
+            if(arch.contains("arm")) { 
+              String armArchitecture = getArmArchitecture();
+
+              if( armArchitecture.equals( "armv6l" )) {
+                return armv6l;
+              }
+              else if( armArchitecture.equals( "armv7l" )) {
+                return armv7l;
+              }
+              else if( armArchitecture.equals( "armv8l" )) {
+                return armv8l;
+              }
+            }
+
             throw new DetectionFailedException("Unknown CPU architecture: "+arch);
         }
 
